@@ -2,35 +2,38 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lista Compra Churro</title>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <style>
-        :root { --primary: #007AFF; --bg: #f2f2f7; }
+        :root { --primary: #FF9500; --bg: #f2f2f7; }
         body { font-family: -apple-system, system-ui; background: var(--bg); margin: 0; padding: 20px; }
         .container { max-width: 500px; margin: 0 auto; }
+        h1 { text-align: center; color: #1c1c1e; }
         #camera-btn { 
             background: var(--primary); color: white; width: 100%; border: none; 
-            padding: 18px; border-radius: 14px; font-size: 18px; font-weight: bold; 
-            margin-bottom: 20px; cursor: pointer; box-shadow: 0 4px 6px rgba(0,122,255,0.3);
+            padding: 15px; border-radius: 12px; font-size: 18px; font-weight: bold; margin-bottom: 20px;
         }
         .item { 
-            background: white; padding: 16px; border-radius: 12px; margin-bottom: 10px;
-            display: flex; align-items: center; border: 1px solid #ddd;
+            background: white; padding: 15px; border-radius: 10px; margin-bottom: 10px;
+            display: flex; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
-        .item.checked { opacity: 0.4; text-decoration: line-through; background: #e5e5ea; }
+        .item.checked { opacity: 0.5; text-decoration: line-through; background: #e5e5ea; }
         .checkbox { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--primary); margin-right: 15px; }
-        .checked .checkbox { background: var(--primary); position: relative; }
-        #status { text-align: center; color: #8e8e93; font-size: 14px; margin-bottom: 15px; font-weight: 500; }
+        .checked .checkbox { background: var(--primary); }
+        #status { text-align: center; color: #8e8e93; font-size: 14px; margin-bottom: 10px; }
     </style>
 </head>
 <body>
+
 <div class="container">
-    <h1 style="text-align: center;">🛒 Mi Lista IA</h1>
+    <h1>🛒 Lista Sin Errores</h1>
     <input type="file" id="file-input" accept="image/*" capture="camera" style="display: none;">
-    <button id="camera-btn">📸 ESCANEAR PIZARRA</button>
+    <button id="camera-btn">📸 Escanear Pizarra</button>
     <div id="status"></div>
     <div id="shopping-list"></div>
 </div>
+
 <script>
     const fileInput = document.getElementById('file-input');
     const cameraBtn = document.getElementById('camera-btn');
@@ -39,48 +42,36 @@
 
     cameraBtn.onclick = () => fileInput.click();
 
-    fileInput.onchange = e => {
+    fileInput.onchange = async e => {
         const file = e.target.files[0];
         if (!file) return;
-        status.innerText = "Procesando imagen... ⏳";
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            const img = new Image();
-            img.onload = () => {
-                const canvas = document.createElement('canvas');
-                const MAX_WIDTH = 800; // Reducimos más para asegurar fluidez
-                let width = img.width, height = img.height;
-                if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
-                canvas.width = width; canvas.height = height;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0, width, height);
-                // Calidad 0.6: Equilibrio perfecto entre peso y lectura
-                const base64 = canvas.toDataURL('image/jpeg', 0.6).split(',')[1];
-                enviarIA(base64);
-            };
-            img.src = event.target.result;
-        };
-        reader.readAsDataURL(file);
-    };
 
-    async function enviarIA(base64) {
-        status.innerText = "Gemini está leyendo tu letra... 🚀";
+        status.innerText = "Leyendo imagen localmente... 🧠 (Tarda un poco)";
+        
         try {
-            const res = await fetch('/api/process', { method: 'POST', body: JSON.stringify({ image: base64 }) });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error || 'Error de conexión');
-            const items = data.candidates[0].content.parts[0].text.split('\n').filter(i => i.trim());
+            // Tesseract lee la imagen directamente en el navegador
+            const result = await Tesseract.recognize(file, 'spa', {
+                logger: m => { if(m.status === 'recognizing text') status.innerText = `Leyendo: ${Math.round(m.progress * 100)}%`; }
+            });
+
+            const items = result.data.text.split('\n')
+                                .map(i => i.trim())
+                                .filter(i => i.length > 3); // Filtramos ruidos cortos
+
             renderList(items);
-            status.innerText = "¡Listo, Churro! Tacha lo que compres.";
-        } catch (err) { status.innerText = "Fallo: " + err.message; }
-    }
+            status.innerText = "¡Lista procesada!";
+        } catch (error) {
+            status.innerText = "Error al leer la imagen.";
+            console.error(error);
+        }
+    };
 
     function renderList(lines) {
         listContainer.innerHTML = '';
         lines.forEach(line => {
             const div = document.createElement('div');
             div.className = 'item';
-            div.innerHTML = `<div class="checkbox"></div><span>${line.replace(/^- /,'')}</span>`;
+            div.innerHTML = `<div class="checkbox"></div><span>${line}</span>`;
             div.onclick = () => div.classList.toggle('checked');
             listContainer.appendChild(div);
         });
