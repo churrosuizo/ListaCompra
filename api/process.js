@@ -5,7 +5,9 @@ export default async function handler(req, res) {
     const { image } = JSON.parse(req.body);
     const API_KEY = process.env.GEMINI_API_KEY;
 
-    // URL Estándar de Producción 2025
+    if (!API_KEY) return res.status(500).json({ error: "Falta la API Key en Vercel" });
+
+    // URL DE PRODUCCIÓN ESTABLE (v1)
     const apiUrl = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
 
     const response = await fetch(apiUrl, {
@@ -14,7 +16,7 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         contents: [{
           parts: [
-            { text: "Lee la lista de la compra de esta imagen. Devuelve solo los productos, uno por línea." },
+            { text: "Analiza la imagen y devuelve la lista de artículos, uno por línea, sin guiones." },
             { inlineData: { mimeType: "image/jpeg", data: image } }
           ]
         }]
@@ -22,10 +24,13 @@ export default async function handler(req, res) {
     });
 
     const data = await response.json();
-    if (data.error) throw new Error(data.error.message);
+
+    if (data.error) {
+      return res.status(500).json({ error: "Google dice: " + data.error.message });
+    }
 
     res.status(200).json(data);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: "Error interno: " + error.message });
   }
 }
