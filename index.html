@@ -8,11 +8,11 @@
         :root { --primary: #007AFF; --bg: #f2f2f7; }
         body { font-family: -apple-system, system-ui; background: var(--bg); margin: 0; padding: 20px; }
         .container { max-width: 500px; margin: 0 auto; }
-        h1 { text-align: center; color: #1c1c1e; }
+        h1 { text-align: center; margin-bottom: 25px; }
         #camera-btn { 
             background: var(--primary); color: white; width: 100%; border: none; 
-            padding: 15px; border-radius: 12px; font-size: 18px; font-weight: bold; margin-bottom: 20px;
-            cursor: pointer; width: 100%;
+            padding: 15px; border-radius: 12px; font-size: 18px; font-weight: bold; 
+            margin-bottom: 20px; cursor: pointer;
         }
         .item { 
             background: white; padding: 15px; border-radius: 10px; margin-bottom: 10px;
@@ -21,21 +21,17 @@
         .item.checked { opacity: 0.5; text-decoration: line-through; background: #e5e5ea; }
         .checkbox { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--primary); margin-right: 15px; }
         .checked .checkbox { background: var(--primary); }
-        #status { text-align: center; color: #8e8e93; font-size: 14px; margin-bottom: 10px; min-height: 20px; }
+        #status { text-align: center; color: #8e8e93; font-size: 14px; margin-bottom: 15px; min-height: 20px; }
     </style>
 </head>
 <body>
-
 <div class="container">
     <h1>🛒 Lista Cocina</h1>
-    
     <input type="file" id="file-input" accept="image/*" capture="camera" style="display: none;">
     <button id="camera-btn">📸 Escanear Pizarra</button>
-    
     <div id="status"></div>
     <div id="shopping-list"></div>
 </div>
-
 <script>
     const fileInput = document.getElementById('file-input');
     const cameraBtn = document.getElementById('camera-btn');
@@ -47,67 +43,36 @@
     fileInput.onchange = e => {
         const file = e.target.files[0];
         if (!file) return;
-
-        status.innerText = "Optimizando imagen para Vercel... ⏳";
+        status.innerText = "Optimizando foto... ⏳";
         const reader = new FileReader();
-        
         reader.onload = (event) => {
             const img = new Image();
             img.onload = () => {
-                // Redimensionamos la imagen para no superar el límite de Vercel (Error 413)
                 const canvas = document.createElement('canvas');
-                const MAX_WIDTH = 1024; 
-                let width = img.width;
-                let height = img.height;
-
-                if (width > MAX_WIDTH) {
-                    height *= MAX_WIDTH / width;
-                    width = MAX_WIDTH;
-                }
-
-                canvas.width = width;
-                canvas.height = height;
+                const MAX_WIDTH = 1024;
+                let width = img.width, height = img.height;
+                if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
+                canvas.width = width; canvas.height = height;
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, width, height);
-
-                // Comprimimos la imagen a JPEG para que pese muy poco
-                const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
-                const base64Image = dataUrl.split(',')[1];
-                
-                llamarAlMotorGemini(base64Image);
+                const base64Image = canvas.toDataURL('image/jpeg', 0.7).split(',')[1];
+                enviarAGemini(base64Image);
             };
             img.src = event.target.result;
         };
         reader.readAsDataURL(file);
     };
 
-    async function llamarAlMotorGemini(base64Image) {
-        status.innerText = "Gemini está analizando tu pizarra... 🚀";
+    async function enviarAGemini(base64) {
+        status.innerText = "Gemini analizando... 🚀";
         try {
-            const response = await fetch('/api/process', {
-                method: 'POST',
-                body: JSON.stringify({ image: base64Image })
-            });
-            
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Error en la respuesta');
-            }
-
-            const data = await response.json();
-            
-            // Extraemos el texto de la respuesta de Gemini 1.5 Flash
-            const rawText = data.candidates[0].content.parts[0].text;
-            const items = rawText.split('\n')
-                                .map(i => i.trim().replace(/^- /,''))
-                                .filter(i => i.length > 0);
-            
+            const res = await fetch('/api/process', { method: 'POST', body: JSON.stringify({ image: base64 }) });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Error desconocido');
+            const items = data.candidates[0].content.parts[0].text.split('\n').filter(i => i.trim());
             renderList(items);
-            status.innerText = "¡Lista lista, Churro! Ya puedes ir al súper.";
-        } catch (error) {
-            console.error(error);
-            status.innerText = "Error: " + error.message;
-        }
+            status.innerText = "¡Hecho, Churro!";
+        } catch (err) { status.innerText = "Fallo: " + err.message; }
     }
 
     function renderList(lines) {
@@ -121,6 +86,5 @@
         });
     }
 </script>
-
 </body>
 </html>
