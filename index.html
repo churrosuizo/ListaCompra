@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lista Compra Churro</title>
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <style>
         :root { --primary: #007AFF; --bg: #f2f2f7; }
         body { font-family: -apple-system, system-ui; background: var(--bg); margin: 0; padding: 20px; }
@@ -13,6 +12,7 @@
         #camera-btn { 
             background: var(--primary); color: white; width: 100%; border: none; 
             padding: 15px; border-radius: 12px; font-size: 18px; font-weight: bold; margin-bottom: 20px;
+            cursor: pointer;
         }
         .item { 
             background: white; padding: 15px; border-radius: 10px; margin-bottom: 10px;
@@ -28,16 +28,13 @@
 
 <div class="container">
     <h1>🛒 Lista Cocina</h1>
-    
     <input type="file" id="file-input" accept="image/*" capture="camera" style="display: none;">
     <button id="camera-btn">📸 Escanear Pizarra</button>
-    
     <div id="status"></div>
     <div id="shopping-list"></div>
 </div>
 
 <script>
-   <script>
     const fileInput = document.getElementById('file-input');
     const cameraBtn = document.getElementById('camera-btn');
     const listContainer = document.getElementById('shopping-list');
@@ -51,30 +48,26 @@
 
         const reader = new FileReader();
         reader.onloadend = async () => {
-            // Convertimos la imagen a un formato que Gemini entiende (Base64)
             const base64Image = reader.result.split(',')[1];
             status.innerText = "Gemini está leyendo tu pizarra... 🚀";
             
             try {
-                // Llamamos a tu motor en Vercel
                 const response = await fetch('/api/process', {
                     method: 'POST',
                     body: JSON.stringify({ image: base64Image })
                 });
                 
                 const data = await response.json();
-                
-                // Extraemos el texto que nos devuelve la IA
                 const rawText = data.candidates[0].content.parts[0].text;
-                // Limpiamos el texto para crear la lista
+                
                 const items = rawText.split('\n')
                                     .map(i => i.trim().replace(/^- /,''))
                                     .filter(i => i.length > 0);
                 
                 renderList(items);
-                status.innerText = "¡Lista lista, Churro! Ya puedes ir al súper.";
+                status.innerText = "¡Lista lista, Churro!";
             } catch (error) {
-                status.innerText = "Error: Revisa que la API Key esté bien en Vercel.";
+                status.innerText = "Error: Revisa la API Key en Vercel.";
                 console.error(error);
             }
         };
@@ -92,7 +85,5 @@
         });
     }
 </script>
-</script>
-
 </body>
 </html>
