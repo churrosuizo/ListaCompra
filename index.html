@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lista Compra Churro</title>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <style>
+        :root { --primary: #007AFF; --bg: #f2f2f7; }
+        body { font-family: -apple-system, system-ui; background: var(--bg); margin: 0; padding: 20px; }
+        .container { max-width: 500px; margin: 0 auto; }
+        h1 { text-align: center; color: #1c1c1e; }
+        #camera-btn { 
+            background: var(--primary); color: white; width: 100%; border: none; 
+            padding: 15px; border-radius: 12px; font-size: 18px; font-weight: bold; margin-bottom: 20px;
+        }
+        .item { 
+            background: white; padding: 15px; border-radius: 10px; margin-bottom: 10px;
+            display: flex; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .item.checked { opacity: 0.5; text-decoration: line-through; background: #e5e5ea; }
+        .checkbox { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--primary); margin-right: 15px; }
+        .checked .checkbox { background: var(--primary); }
+        #status { text-align: center; color: #8e8e93; font-size: 14px; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🛒 Lista Cocina</h1>
+    
+    <input type="file" id="file-input" accept="image/*" capture="camera" style="display: none;">
+    <button id="camera-btn">📸 Escanear Pizarra</button>
+    
+    <div id="status"></div>
+    <div id="shopping-list"></div>
+</div>
+
+<script>
+    const fileInput = document.getElementById('file-input');
+    const cameraBtn = document.getElementById('camera-btn');
+    const listContainer = document.getElementById('shopping-list');
+    const status = document.getElementById('status');
+
+    cameraBtn.onclick = () => fileInput.click();
+
+    fileInput.onchange = e => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        status.innerText = "Leyendo letra de médico... 🧐";
+        
+        Tesseract.recognize(file, 'spa', { logger: m => console.log(m) })
+            .then(({ data: { text } }) => {
+                const lines = text.split('\n').filter(line => line.trim().length > 2);
+                renderList(lines);
+                status.innerText = "¡Listo! Ya puedes ir al súper.";
+            })
+            .catch(err => {
+                status.innerText = "Error procesando la foto.";
+                console.error(err);
+            });
+    };
+
+    function renderList(lines) {
+        listContainer.innerHTML = '';
+        lines.forEach(line => {
+            const div = document.createElement('div');
+            div.className = 'item';
+            div.innerHTML = `<div class="checkbox"></div><span>${line}</span>`;
+            div.onclick = () => div.classList.toggle('checked');
+            listContainer.appendChild(div);
+        });
+    }
+</script>
+
+</body>
+</html>
